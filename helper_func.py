@@ -1,6 +1,3 @@
-#(©)CodeFlix_Bots
-#rohit_1888 on Tg #Dont remove this line
-
 import base64
 import re
 import asyncio
@@ -163,5 +160,3 @@ def get_exp_time(seconds):
 
 subscribed = filters.create(is_subscribed)
 admin = filters.create(check_admin)
-
-#rohit_1888 on Tg :
