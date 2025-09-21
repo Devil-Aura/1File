@@ -213,10 +213,9 @@ async def start_command(client: Client, message: Message):
                 ),
                 reply_markup=reply_markup,
                 quote=True,
-                message_effect_id=5104841245755180586  # ✨ effect
+                message_effect_id=5104841245755180586
             )
         except TypeError:
-            # fallback for old Pyrogram
             await message.reply_photo(
                 photo=START_PIC,
                 caption=START_MSG.format(
@@ -229,10 +228,9 @@ async def start_command(client: Client, message: Message):
                 reply_markup=reply_markup,
                 quote=True
             )
-        return
+        return  # ✅ properly aligned return
 
 # ===================================================================================== ##
-# Cache for chat data
 chat_data_cache = {}
 
 async def not_joined(client: Client, message: Message):
@@ -323,4 +321,4 @@ async def bcmd(bot: Bot, message: Message):
         text=CMD_TXT,
         reply_markup=reply_markup,
         quote=True
-                )
+        )
