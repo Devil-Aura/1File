@@ -1,24 +1,9 @@
 import asyncio
-import os
-import random
-import sys
-import time
 from datetime import datetime, timedelta
-
-from pyrogram import Client, filters, __version__
+from pyrogram import Client, filters
 from pyrogram.enums import ParseMode, ChatAction
-from pyrogram.types import (
-    Message,
-    InlineKeyboardMarkup,
-    InlineKeyboardButton,
-    CallbackQuery,
-    ReplyKeyboardMarkup,
-    ChatInviteLink,
-    ChatPrivileges,
-)
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
 from pyrogram.errors import FloodWait
-from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant
-from pyrogram.errors import UserIsBlocked, InputUserDeactivated
 
 from bot import Bot
 from config import *
@@ -101,44 +86,84 @@ async def start_command(client: Client, message: Message):
             caption = (
                 CUSTOM_CAPTION.format(
                     previouscaption="" if not msg.caption else msg.caption.html,
-                    filename=msg.document.file_name,
+                    filename=msg.document.file_name if msg.document else ""
                 )
-                if bool(CUSTOM_CAPTION) and bool(msg.document)
+                if CUSTOM_CAPTION and (msg.document or msg.video or msg.audio)
                 else ("" if not msg.caption else msg.caption.html)
             )
 
-            reply_markup = msg.reply_markup if DISABLE_CHANNEL_BUTTON else None
+            reply_markup = msg.reply_markup  # preserve buttons
 
             try:
-                copied_msg = await msg.copy(
-                    chat_id=message.from_user.id,
-                    caption=caption,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=reply_markup,
-                    protect_content=PROTECT_CONTENT,
-                )
+                # Send media based on type to preserve buttons and quote original message
+                if msg.document:
+                    copied_msg = await client.send_document(
+                        chat_id=message.from_user.id,
+                        document=msg.document.file_id,
+                        caption=caption,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=reply_markup,
+                        reply_to_message_id=message.id,
+                        protect_content=PROTECT_CONTENT
+                    )
+                elif msg.video:
+                    copied_msg = await client.send_video(
+                        chat_id=message.from_user.id,
+                        video=msg.video.file_id,
+                        caption=caption,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=reply_markup,
+                        reply_to_message_id=message.id,
+                        supports_streaming=True,
+                        protect_content=PROTECT_CONTENT
+                    )
+                elif msg.audio:
+                    copied_msg = await client.send_audio(
+                        chat_id=message.from_user.id,
+                        audio=msg.audio.file_id,
+                        caption=caption,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=reply_markup,
+                        reply_to_message_id=message.id,
+                        protect_content=PROTECT_CONTENT
+                    )
+                elif msg.photo:
+                    copied_msg = await client.send_photo(
+                        chat_id=message.from_user.id,
+                        photo=msg.photo.file_id,
+                        caption=caption,
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=reply_markup,
+                        reply_to_message_id=message.id,
+                        protect_content=PROTECT_CONTENT
+                    )
+                else:
+                    # fallback for text messages
+                    copied_msg = await client.send_message(
+                        chat_id=message.from_user.id,
+                        text=caption or msg.text or "",
+                        parse_mode=ParseMode.HTML,
+                        reply_markup=reply_markup,
+                        reply_to_message_id=message.id,
+                        disable_web_page_preview=True
+                    )
+
                 codeflix_msgs.append(copied_msg)
+
             except FloodWait as e:
                 await asyncio.sleep(e.x)
-                copied_msg = await msg.copy(
-                    chat_id=message.from_user.id,
-                    caption=caption,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=reply_markup,
-                    protect_content=PROTECT_CONTENT,
-                )
                 codeflix_msgs.append(copied_msg)
             except Exception as e:
                 print(f"Failed to send message: {e}")
-                pass
+                continue
 
+        # Auto-delete messages if timer is set
         if FILE_AUTO_DELETE > 0:
             notification_msg = await message.reply(
                 f"<b>Tʜɪs Fɪʟᴇ ᴡɪʟʟ ʙᴇ Dᴇʟᴇᴛᴇᴅ ɪɴ {get_exp_time(FILE_AUTO_DELETE)}. "
                 f"Pʟᴇᴀsᴇ sᴀᴠᴇ ᴏʀ ғᴏʀᴡᴀʀᴅ ɪᴛ ᴛᴏ ʏᴏᴜʀ sᴀᴠᴇᴅ ᴍᴇssᴀɢᴇs ʙᴇғᴏʀᴇ ɪᴛ ɢᴇᴛs Dᴇʟᴇᴛᴇᴅ.</b>",
                 quote=True
             )
-
             await asyncio.sleep(FILE_AUTO_DELETE)
 
             for snt_msg in codeflix_msgs:
